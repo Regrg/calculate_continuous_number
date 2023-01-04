@@ -1,19 +1,12 @@
-from tkinter import *
 import os
 import xlrd
 import sys
+from tkinter import *
+from process_input import *
 
 input_file_entry = None
 sheet_entry = None
 number_entry = None
-
-def parse_number(number):
-    result = number.replace(' ', '').split(",")
-    for v in result:
-        if not v.isnumeric():
-            return None
-
-    return [int(x) for x in result]
 
 def result_window(msg):
     window = Toplevel()
@@ -31,22 +24,29 @@ def recursive_match(worksheet, number):
 
     result_list = []
     try:
-        row = 1
+        row = 0
+        length = len(number)
         while True:
             index = worksheet.cell_value(row, 0)
-            length = len(number)
+            try:
+                int(index)
+            except Exception:
+                print('跳過資料: {0}, 因為第{1}列/第{2}行不是數字'.format(index, row + 1, 1))
+                row += 1
+                continue
+
             count = 0
             for column in range(1,6):
                 e = worksheet.cell_value(row, column)
                 if e == '':
-                    print('跳過期別{0}, 因為第{1}列/第{2}行, 欄位無資料'.format(int(index), row, column))
+                    print('跳過期別: {0}, 因為第{1}列/第{2}行, 欄位無資料'.format(int(index), row, column + 1))
                     break
 
                 if int(e) in number:
                     count += 1
 
             if count == length:
-                result_list.append(int(index))
+                result_list.append([int(index), row])
 
             row += 1
     except IndexError as e:
@@ -57,13 +57,13 @@ def recursive_match(worksheet, number):
         pass
     elif length == 1:
         with open('output.txt', 'a') as f:
-            f.write('出現在{0}期別\n'.format(result_list[0]))
+            f.write('出現在{0}期別\n'.format(result_list[0][0]))
     else:
         with open('output.txt', 'a') as f:
             for i in range(length - 1):
-                f.write('出現在{0}期別, 跟下一期隔了 {1} 期\n'.format(result_list[i], result_list[i + 1] - result_list[i]))
+                f.write('出現在{0}期別, 跟下一期隔了 {1} 期\n'.format(result_list[i][0], result_list[i + 1][1] - result_list[i][1]))
                 if i == length - 2:
-                    f.write('出現在{0}期別\n'.format(result_list[i + 1]))
+                    f.write('出現在{0}期別\n'.format(result_list[i + 1][0]))
 
     print('結束. 計算結果放在 output.txt')
     result_window('結束. 計算結果放在 output.txt')
@@ -73,30 +73,13 @@ def callback():
     sheet = sheet_entry.get()
     number = number_entry.get()
 
-    if not input_file:
-        print('輸入檔案不能空白')
-        result_window('輸入檔案不能空白')
-        return
-
-    if input_file not in os.listdir():
-        print('目錄下找不到檔案: {0}'.format(input_file))
-        result_window('目錄下找不到檔案: {0}'.format(input_file))
-        return
-
-    if not sheet.isnumeric():
-        print('分頁不是數字: {0}'.format(sheet))
-        result_window('分頁不是數字: {0}'.format(sheet))
-        return
-
-    if int(sheet) < 1:
-        print('分頁數字小於1: {0}'.format(sheet))
-        result_window('分頁數字小於1: {0}'.format(sheet))
-        return
-
-    parsed_number = parse_number(number)
-    if not parsed_number:
-        print ('要找的數字無法辨識: {0}. 數字間請用逗號隔開'.format(number))
-        result_window('要找的數字無法辨識: {0}. 數字間請用逗號隔開'.format(number))
+    try:
+        check_input_file(input_file)
+        check_sheet(sheet)
+        parsed_number = parse_number(number)
+    except ValueError as e:
+        print(e)
+        result_window(e)
         return
 
     workbook = xlrd.open_workbook(input_file)
@@ -121,7 +104,7 @@ if __name__ == "__main__":
    sheet_entry.pack(padx = 5, pady = 5)
 
    number_entry = Entry(frame, width = 50)
-   number_entry.insert(0,'要找哪些數字(最多五個), 例如: 1, 4, 32')
+   number_entry.insert(0,'要找哪些數字, 例如: 1, 4, 32')
    number_entry.pack(padx = 5, pady = 5)
 
    button = Button(frame, text = "calculate", command = callback)

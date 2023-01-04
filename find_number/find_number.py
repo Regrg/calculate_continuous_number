@@ -1,19 +1,13 @@
-from tkinter import *
 import os
 import xlrd
 import sys
+from tkinter import *
+from process_input import *
 
 input_file_entry = None
 sheet_entry = None
 number_entry = None
-
-def parse_number(number):
-    result = number.replace(' ', '').split(",")
-    for v in result:
-        if not v.isnumeric():
-            return None
-
-    return [int(x) for x in result]
+occurence_entry = None
 
 def result_window(msg):
     window = Toplevel()
@@ -24,16 +18,23 @@ def result_window(msg):
     button = Button(window, text = 'Quit', command=sys.exit)
     button.pack(pady = 10)
 
-def recursive_match(worksheet, number):
+def recursive_find(worksheet, number, occurence):
     if 'output.txt' in os.listdir():
         with open('output.txt', 'w') as f:
             pass
 
     try:
-        row = 1
+        row = 0
+        length = len(number)
         while True:
             index = worksheet.cell_value(row, 0)
-            length = len(number)
+            try:
+                int(index)
+            except Exception:
+                print('跳過資料: {0}, 因為第{1}列/第{2}行不是數字'.format(index, row + 1, 1))
+                row += 1
+                continue
+
             count = 0
             for column in range(1,6):
                 e = worksheet.cell_value(row, column)
@@ -44,8 +45,10 @@ def recursive_match(worksheet, number):
                 if int(e) in number:
                     count += 1
 
-            with open('output.txt', 'a') as f:
-                f.write('第{0}期別中了 {1} 個數字\n'.format(int(index), count))
+            if (occurence is not None and count == occurence) or \
+                    (occurence is None and count == length):
+                with open('output.txt', 'a') as f:
+                    f.write('第{0}期別中了 {1} 個數字\n'.format(int(index), count))
 
             row += 1
     except IndexError as e:
@@ -57,42 +60,28 @@ def callback():
     input_file = input_file_entry.get()
     sheet = sheet_entry.get()
     number = number_entry.get()
+    occurence = occurence_entry.get()
 
-    if not input_file:
-        print('輸入檔案不能空白')
-        result_window('輸入檔案不能空白')
+    try:
+        check_input_file(input_file)
+        check_sheet(sheet)
+        parsed_number = parse_number(number)
+    except ValueError as e:
+        print(e)
+        result_window(e)
         return
 
-    if input_file not in os.listdir():
-        print('目錄下找不到檔案: {0}'.format(input_file))
-        result_window('目錄下找不到檔案: {0}'.format(input_file))
-        return
-
-    if not sheet.isnumeric():
-        print('分頁不是數字: {0}'.format(sheet))
-        result_window('分頁不是數字: {0}'.format(sheet))
-        return
-
-    if int(sheet) < 1:
-        print('分頁數字小於1: {0}'.format(sheet))
-        result_window('分頁數字小於1: {0}'.format(sheet))
-        return
-
-    parsed_number = parse_number(number)
-    if not parsed_number:
-        print ('要找的數字無法辨識: {0}. 數字間請用逗號隔開'.format(number))
-        result_window('要找的數字無法辨識: {0}. 數字間請用逗號隔開'.format(number))
-        return
+    occurence = parse_occurence(occurence)
 
     workbook = xlrd.open_workbook(input_file)
 
     worksheet = workbook.sheet_by_index(int(sheet) - 1)
 
-    recursive_match(worksheet, parsed_number)
+    recursive_find(worksheet, parsed_number, occurence)
 
 if __name__ == "__main__":
    root = Tk()
-   root.geometry("300x200")
+   root.geometry("400x200")
 
    frame = Frame(root)
    frame.pack()
@@ -106,8 +95,12 @@ if __name__ == "__main__":
    sheet_entry.pack(padx = 5, pady = 5)
 
    number_entry = Entry(frame, width = 50)
-   number_entry.insert(0,'要找哪些數字(最多五個), 例如: 1, 4, 32')
+   number_entry.insert(0,'要找哪些數字, 例如: 1, 4, 32')
    number_entry.pack(padx = 5, pady = 5)
+
+   occurence_entry = Entry(frame, width = 50)
+   occurence_entry.insert(0,'要指定中幾個數字, 例如: 1, 2, 3. 無法辨識成數字會全部列出')
+   occurence_entry.pack(padx = 5, pady = 5)
 
    button = Button(frame, text = "calculate", command = callback)
    button.pack()
