@@ -5,5 +5,5 @@ Output: `output.txt` records the result of calculation<br>
 
 # bundle as one executable file using pyinstaller
 ``` bash
-$ pyinstaller calculate_zero.py --onelfile
+$ pyinstaller calculate_zero.py --onefile
 ```
