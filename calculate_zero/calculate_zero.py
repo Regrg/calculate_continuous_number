@@ -2,6 +2,7 @@ from tkinter import *
 import os
 import xlrd
 import sys
+import openpyxl
 
 input_file_entry = None
 sheet_entry = None
@@ -24,7 +25,7 @@ def is_digit(data):
 
     return True
 
-def count(worksheet, col):
+def count(worksheet, col, ws, ws_row):
     row = 1
     count_0 = 0
     try:
@@ -33,11 +34,23 @@ def count(worksheet, col):
             if (not is_digit(e)):
                 with open('output.txt', 'a') as f:
                     f.write('結束. 最後還剩下 {0} 個零\n\n'.format(count_0))
-                return
+
+                data = ['結束. 最後還剩下', str(count_0), '個零']
+                for col_idx, cell_data in enumerate(data, start=1):
+                    ws.cell(row=ws_row, column=col_idx, value=cell_data)
+                ws_row += 2
+
+                return ws_row
 
             if (e != 0):
                 with open('output.txt', 'a') as f:
                     f.write('第 {0} 列是 {1}, 前面有 {2} 個零\n'.format(row + 1, int(e), count_0))
+
+                data = ['第', str(row + 1), '列是 {0}, 前面有'.format(int(e)), str(count_0), '個零']
+                for col_idx, cell_data in enumerate(data, start=1):
+                    ws.cell(row=ws_row, column=col_idx, value=cell_data)
+                ws_row += 1
+
                 count_0 = 0
             else:
                 count_0 += 1
@@ -47,29 +60,54 @@ def count(worksheet, col):
         with open('output.txt', 'a') as f:
             f.write('結束. 最後還剩下 {0} 個零\n\n'.format(count_0))
 
+        data = ['結束. 最後還剩下', str(count_0), '個零']
+        for col_idx, cell_data in enumerate(data, start=1):
+            ws.cell(row=ws_row, column=col_idx, value=cell_data)
+        ws_row += 2
+
+    return ws_row
+
 def recursive_count(worksheet, start_col):
     if 'output.txt' in os.listdir():
         with open('output.txt', 'w') as f:
             pass
 
+    if 'output.xlsx' in os.listdir():
+        os.remove('output.xlsx')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws_row = 1
+
     try:
         while True:
-            e = worksheet.cell_value(0, start_col)
-            if e == '':
+            val = worksheet.cell_value(0, start_col)
+            if val == '':
                 start_col += 1
                 continue
 
             with open('output.txt', 'a') as f:
                 try:
-                    f.write('開頭第一行: {0}\n'.format(int(e)))
-                except ValueError as e:
-                    f.write('開頭第一行: {0}\n'.format(e))
+                    f.write('開頭第一行: {0}\n'.format(int(val)))
 
-            count(worksheet, start_col)
+                    data = ['開頭第一行:', str(int(val))]
+                    for col_idx, cell_data in enumerate(data, start=1):
+                        ws.cell(row=ws_row, column=col_idx, value=cell_data)
+                    ws_row += 1
+                except ValueError as e:
+                    f.write('開頭第一行: {0}\n'.format(val))
+
+                    data = ['開頭第一行:', str(val)]
+                    for col_idx, cell_data in enumerate(data, start=1):
+                        ws.cell(row=ws_row, column=col_idx, value=cell_data)
+                    ws_row += 1
+
+            ws_row = count(worksheet, start_col, ws, ws_row)
             start_col += 1
     except IndexError as e:
-        print('結束. 計算結果放在 output.txt')
-        result_window('結束. 計算結果放在 output.txt')
+        wb.save('output.xlsx')
+        print('結束. 計算結果放在 output.txt, output.xlsx')
+        result_window('結束. 計算結果放在 output.txt, output.xlsx')
 
 def callback():
     input_file = input_file_entry.get()
